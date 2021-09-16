@@ -1,11 +1,14 @@
 package com.study.javastudy.reflecttest;
 
-import org.aspectj.weaver.loadtime.Agent;
+import io.lettuce.core.ScriptOutputType;
 import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.lang.reflect.*;
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.Properties;
+import java.util.ResourceBundle;
 
 public class TestReflect {
 
@@ -199,8 +202,96 @@ public class TestReflect {
         Array.set(temp, 0, 100);
         System.out.println("修改之后数组第一个元素为： " + Array.get(temp, 0));
     }
+
+    /**
+     *  反射机制的动态代理
+     *
+     * 在java中有三种类类加载器。
+     *
+     * 1）Bootstrap ClassLoader 此加载器采用c++编写，一般开发中很少见。
+     *
+     * 2）Extension ClassLoader 用来进行扩展类的加载，一般对应的是jrelibext目录中的类
+     *
+     * 3）AppClassLoader 加载classpath指定的类，是最常用的加载器。同时也是java中默认的加载器。
+     *
+     * 如果想要完成动态代理，首先需要定义一个InvocationHandler接口的子类，以完成代理的具体操作。
+     *
+     *  @throws Exception
+     */
+    @Test
+    void test10() {
+        MyInvocationHandler demo = new MyInvocationHandler();
+        Subject sub = (Subject) demo.bind(new RealSubject());
+        String info = sub.say("Rollen", 20);
+        System.out.println(info);
+    }
+
+    /**
+     *  将反射机制应用于工厂模式
+     *
+     * 对于普通的工厂模式当我们在添加一个子类的时候，就需要对应的修改工厂类。 当我们添加很多的子类的时候，会很麻烦。
+     *
+     * 现在我们利用反射机制实现工厂模式，可以在不修改工厂类的情况下添加任意多个子类。
+     *
+     * 但是有一点仍然很麻烦，就是需要知道完整的包名和类名，这里可以使用properties配置文件来完成。
+     *
+     *  @throws Exception
+     */
+    @Test
+    void test11() {
+        fruit f = Factory.getInstance("com.study.javastudy.reflecttest.Apple");
+        if (f != null) {
+            f.eat();
+        }
+    }
 }
 
+interface fruit {
+    void eat();
+}
+class Apple implements fruit {
+    public void eat() {
+        System.out.println("Apple");
+    }
+}
+class Orange implements fruit {
+    public void eat() {
+        System.out.println("Orange");
+    }
+}
+class Factory {
+    public static fruit getInstance(String ClassName) {
+        fruit f = null;
+        try {
+            f = (fruit) Class.forName(ClassName).newInstance();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return f;
+    }
+}
+
+//定义项目接口
+interface Subject {
+    String say(String name, int age);
+}
+// 定义真实项目
+class RealSubject implements Subject {
+    public String say(String name, int age) {
+        return name + "  " + age;
+    }
+}
+class MyInvocationHandler implements InvocationHandler {
+    private Object obj = null;
+    public Object bind(Object obj) {
+        this.obj = obj;
+        return Proxy.newProxyInstance(obj.getClass().getClassLoader(), obj.getClass().getInterfaces(), this);
+    }
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        Object temp = method.invoke(this.obj, args);
+        return temp;
+    }
+}
 
 class Person implements Serializable, Comparable {
 
